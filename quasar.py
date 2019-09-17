@@ -25,14 +25,17 @@
 #
 
 from abc import abstractmethod, ABC
-from typing import cast, Any, Callable, Dict, Iterable, List, Optional, Type, Union
+from math import asin, pi, sqrt
+from typing import cast, Callable, Dict, Iterable, List, Optional, Type, Union
 from itertools import chain
+
+import typing
 
 #
 ##
 #
 
-def to_list(obj: Union[Any, List[Any]]) -> List[Any]:
+def to_list(obj: Union[typing.Any, List[typing.Any]]) -> List[typing.Any]:
     if isinstance(obj, list):
         return obj
     else:
@@ -87,47 +90,47 @@ class IQAsmFormatter(ABC):
         pass
 
     @abstractmethod
-    def x(self, qubit: int) -> str:
+    def x(self, target_qubit_id: int) -> str:
         pass
 
     @abstractmethod
-    def y(self, qubit: int) -> str:
+    def cx(self, control_qubit: int, target_qubit_id: int) -> str:
         pass
 
     @abstractmethod
-    def z(self, qubit: int) -> str:
+    def ccx(self, control_qubit_id_1: int, control_qubit_id_2: int, target_qubit_id: int) -> str:
         pass
 
     @abstractmethod
-    def rz(self, qubit: int, phi: float) -> str:
+    def y(self, target_qubit_id: int) -> str:
         pass
 
     @abstractmethod
-    def h(self, qubit: int) -> str:
+    def cy(self, control_qubit_id: int, target_qubit_id: int) -> str:
         pass
 
     @abstractmethod
-    def cx(self, ctrl_1: int, target: int) -> str:
+    def z(self, target_qubit_id: int) -> str:
         pass
 
     @abstractmethod
-    def cy(self, ctrl_1: int, target: int) -> str:
+    def cz(self, control_qubit_id: int, target_qubit_id: int) -> str:
         pass
 
     @abstractmethod
-    def cz(self, ctrl_1: int, target: int) -> str:
+    def h(self, target_qubit_id: int) -> str:
         pass
 
     @abstractmethod
-    def crz(self, ctrl_1: int, target: int, phi: float) -> str:
+    def ch(self, control_qubit_id: int, target_qubit_id: int) -> str:
         pass
 
     @abstractmethod
-    def ch(self, ctrl_1: int, target: int) -> str:
+    def u3(self, target_qubit_id: int, arg1: float, arg2: float, arg3: float) -> str:
         pass
 
     @abstractmethod
-    def ccx(self, ctrl_1: int, ctrl_2: int, target: int) -> str:
+    def cu3(self, control_qubit_id: int, target_qubit_id: int, arg1: float, arg2: float, arg3: float) -> str:
         pass
 
     @abstractmethod
@@ -137,11 +140,11 @@ class IQAsmFormatter(ABC):
 
 class QiskitFormatter(IQAsmFormatter):
     def __init__(self) -> None:
-        self.q_register = None
+        self.q_registers = None
         self.q_circuit = None
 
     def get_quantum_register(self):
-        return self.q_register
+        return self.q_registers
 
     def get_quantum_circuit(self):
         return self.q_circuit
@@ -150,53 +153,66 @@ class QiskitFormatter(IQAsmFormatter):
         return '# ' + text
 
     def get_headers(self, qubits: int, groups: List[int], bits: int) -> List[str]:
-        # self.q_register = qiskit.QuantumRegister(qubits, 'q_register')
-        # self.q_circuit = qiskit.QuantumCircuit(self.q_register)
+        # self.q_registers = qiskit.QuantumRegister(qubits, 'q_registers')
+        # self.q_circuit = qiskit.QuantumCircuit(self.q_registers)
 
         return [
-            f'self.q_register = qiskit.QuantumRegister({qubits}, "q_register")',
+            f'self.q_registers = qiskit.QuantumRegister({qubits}, "q_registers")',
             f'self.c_register = qiskit.ClassicalRegister({bits}, "c_register")',
-            f'self.q_circuit = qiskit.QuantumCircuit(self.q_register)'
+            f'self.q_circuit = qiskit.QuantumCircuit(self.q_registers)'
         ]
 
     def get_footers(self) -> List[str]:
         return []
 
-    def x(self, qubit: int) -> str:
-        return f'self.q_circuit.x(self.q_register[{qubit}])'
+    def x(self, target_qubit_id: int) -> str:
+        return f'self.q_circuit.x(self.q_registers[{target_qubit_id}])'
 
-    def y(self, qubit: int) -> str:
-        return f'self.q_circuit.y(self.q_register[{qubit}])'
+    def cx(self, control_qubit_id: int, target_qubit_id: int) -> str:
+        return f'self.q_circuit.cx(self.q_registers[{control_qubit_id}], self.q_registers[{target_qubit_id}])'
 
-    def z(self, qubit: int) -> str:
-        return f'self.q_circuit.z(self.q_register[{qubit}])'
+    def ccx(self, control_qubit_id_1: int, control_qubit_id_2: int, target_qubit_id: int) -> str:
+        return (
+            f'self.q_circuit.ccx(self.q_registers[{control_qubit_id_1}], ' +
+            f'self.q_registers[{control_qubit_id_2}], ' +
+            f'self.q_registers[{target_qubit_id}])'
+        )
 
-    def rz(self, qubit: int, phi: float) -> str:
-        return f'self.q_circuit.rz({phi}, self.q_register[{qubit}])'
+    def y(self, target_qubit_id: int) -> str:
+        return f'self.q_circuit.y(self.q_registers[{target_qubit_id}])'
 
-    def h(self, qubit: int) -> str:
-        return f'self.q_circuit.h(self.q_register[{qubit}])'
+    def cy(self, control_qubit_id: int, target_qubit_id: int) -> str:
+        return f'self.q_circuit.cy(self.q_registers[{control_qubit_id}], self.q_registers[{target_qubit_id}])'
 
-    def cx(self, ctrl: int, target: int) -> str:
-        return f'self.q_circuit.cx(self.q_register[{ctrl}], self.q_register[{target}])'
+    def z(self, target_qubit_id: int) -> str:
+        return f'self.q_circuit.z(self.q_registers[{target_qubit_id}])'
 
-    def cy(self, ctrl: int, target: int) -> str:
-        return f'self.q_circuit.cy(self.q_register[{ctrl}], self.q_register[{target}])'
+    def cz(self, control_qubit_id: int, target_qubit_id: int) -> str:
+        return f'self.q_circuit.cz(self.q_registers[{control_qubit_id}], self.q_registers[{target_qubit_id}])'
 
-    def cz(self, ctrl: int, target: int) -> str:
-        return f'self.q_circuit.cz(self.q_register[{ctrl}], self.q_register[{target}])'
+    def h(self, target_qubit_id: int) -> str:
+        return f'self.q_circuit.h(self.q_registers[{target_qubit_id}])'
 
-    def crz(self, ctrl: int, target: int, phi: float) -> str:
-        return f'self.q_circuit.crz({phi}, self.q_register[{ctrl}], self.q_register[{target}])'
+    def ch(self, control_qubit_id: int, target_qubit_id: int) -> str:
+        return f'self.q_circuit.ch(self.q_registers[{control_qubit_id}], self.q_registers[{target_qubit_id}])'
 
-    def ch(self, ctrl: int, target: int) -> str:
-        return f'self.q_circuit.ch(self.q_register[{ctrl}], self.q_register[{target}])'
+    def u3(self, target_qubit_id: int, arg1: float, arg2: float, arg3: float) -> str:
+        return (
+            f'self.q_circuit.u3({arg1}, {arg2}, {arg3}, ' +
+            f'self.q_registers[{target_qubit_id}]' +
+            f')'
+        )
 
-    def ccx(self, ctrl_1: int, ctrl_2: int, target: int) -> str:
-        return f'self.q_circuit.ccx(self.q_register[{ctrl_1}], self.q_register[{ctrl_2}], self.q_register[{target}])'
+    def cu3(self, control_qubit_id: int, target_qubit_id: int, arg1: float, arg2: float, arg3: float) -> str:
+        return (
+            f'self.q_circuit.cu3({arg1}, {arg2}, {arg3}, ' +
+            f'self.q_registers[{control_qubit_id}], ' +
+            f'self.q_registers[{target_qubit_id}]' +
+            f')'
+        )
 
     def measure(self, qubit: int, bit: int) -> str:
-        return f'self.q_circuit.measure(self.q_register[{qubit}], self.c_register[{bit}])'
+        return f'self.q_circuit.measure(self.q_registers[{qubit}], self.c_register[{bit}])'
 
 
 class QASMFormatter(IQAsmFormatter):
@@ -212,51 +228,55 @@ class QASMFormatter(IQAsmFormatter):
     def comment(self, text: str) -> str:
         return '// ' + text
 
-    def get_headers(self, qubits: int, groups: List[int], bits: int) -> List[str]:
+    def get_headers(self, qubits_size: int, groups: List[int], bits_size: int) -> List[str]:
         return [
             f'OPENQASM 2.0;',
             f'include "qelib1.inc";',
             f' ',
-            f'qreg q_registers[{qubits}];',
-            f'creg c_registers[{bits}];',
+            f'qreg q_registers[{qubits_size}];',
+            f'creg c_registers[{bits_size}];',
             f' '
         ]
 
     def get_footers(self) -> List[str]:
         return []
 
-    def x(self, qubit: int) -> str:
-        return f'x q_registers[{qubit}];'
+    def x(self, target_qubit_id: int) -> str:
+        return f'x q_registers[{target_qubit_id}];'
 
-    def y(self, qubit: int) -> str:
-        return f'y q_registers[{qubit}];'
+    def cx(self, control_qubit_id: int, target_qubit_id: int) -> str:
+        return f'cx q_registers[{control_qubit_id}], q_registers[{target_qubit_id}];'
 
-    def z(self, qubit: int) -> str:
-        return f'z q_registers[{qubit}];'
+    def ccx(self, control_qubit_id_1: int, control_qubit_id_2: int, target_qubit_id: int) -> str:
+        return f'ccx q_registers[{control_qubit_id_1}], q_registers[{control_qubit_id_2}], q_registers[{target_qubit_id}];'
 
-    def rz(self, qubit: int, phi: float) -> str:
-        return f'rz q_registers[{qubit}];'
+    def y(self, target_qubit_id: int) -> str:
+        return f'y q_registers[{target_qubit_id}];'
 
-    def h(self, qubit: int) -> str:
-        return f'h q_registers[{qubit}];'
+    def cy(self, control_qubit_id: int, target_qubit_id: int) -> str:
+        return f'cy q_registers[{control_qubit_id}], q_registers[{target_qubit_id}];'
 
-    def cx(self, ctrl: int, target: int) -> str:
-        return f'cx q_registers[{ctrl}], q_registers[{target}];'
+    def z(self, target_qubit_id: int) -> str:
+        return f'z q_registers[{target_qubit_id}];'
 
-    def cy(self, ctrl: int, target: int) -> str:
-        return f'cy q_registers[{ctrl}], q_registers[{target}];'
+    def cz(self, control_qubit_id: int, target_qubit_id: int) -> str:
+        return f'cz q_registers[{control_qubit_id}], q_registers[{target_qubit_id}];'
 
-    def cz(self, ctrl: int, target: int) -> str:
-        return f'cz q_registers[{ctrl}], q_registers[{target}];'
+    def h(self, target_qubit_id: int) -> str:
+        return f'h q_registers[{target_qubit_id}];'
 
-    def crz(self, ctrl: int, target: int, phi: float) -> str:
-        return f'crz {phi} q_registers[{ctrl}], q_registers[{target}]'
+    def ch(self, control_qubit_id: int, target_qubit_id: int) -> str:
+        return f'ch q_registers[{control_qubit_id}], q_registers[{target_qubit_id}];'
 
-    def ch(self, ctrl: int, target: int) -> str:
-        return f'ch q_registers[{ctrl}], q_registers[{target}];'
+    def u3(self, target_qubit_id: int, arg1: float, arg2: float, arg3: float) -> str:
+        return f'u3({arg1}, {arg2}, {arg3}), q_registers[{target_qubit_id}];'
 
-    def ccx(self, ctrl_1: int, ctrl_2: int, target: int) -> str:
-        return f'ccx q_registers[{ctrl_1}], q_registers[{ctrl_2}], q_registers[{target}];'
+    def cu3(self, control_qubit_id: int, target_qubit_id: int, arg1: float, arg2: float, arg3: float) -> str:
+        return (
+            f'cu3({arg1}, {arg2}, {arg3}), ' +
+            f'q_registers[{control_qubit_id}], ' +
+            f'.q_registers[{target_qubit_id}];'
+        )
 
     def measure(self, qubit: int, bit: int) -> str:
         return f'measure q_registers[{qubit}] -> c_register[{bit}];'
@@ -320,6 +340,10 @@ class _ASTNode(_IVisitable):
 
 
 class _Program:
+    @staticmethod
+    def _get_label() -> str:
+        return 'PROGRAM'
+
     def __init__(self, other: Optional[Union[_ASTNode, List[_ASTNode], '_Program']] = None) -> None:
         self._nodes : List[_ASTNode] = []
 
@@ -368,16 +392,15 @@ class _Program:
         return len(self._nodes)
 
     def _accept(self, visitor: '_ASTVisitor') -> None:
-        for node in self._nodes:
-            node._accept(visitor)
+        visitor.on_program(self)
 
-    def QBit(self, init=0) -> '_QBitNode':
-        qbit = _QBitNode(init)
-        self._nodes.append(qbit)
-        return qbit
+    def Qubit(self, init=0) -> '_QubitNode':
+        qubit = _QubitNode(init)
+        self._nodes.append(qubit)
+        return qubit
 
-    def QBits(self, inits: Iterable[int]) -> List['_QBitNode']:
-        return [self.QBit(init) for init in inits]
+    def Qubits(self, inits: Iterable[int]) -> List['_QubitNode']:
+        return [self.Qubit(init) for init in inits]
 
     def CBit(self) -> '_CBitNode':
         cbit = _CBitNode()
@@ -388,13 +411,12 @@ class _Program:
         return [self.CBit() for i in range(size)]
 
 
-class _QBitNode(_ASTNode):
-    _qbit_counter = 0
+class _QubitNode(_ASTNode):
+    _qubit_counter = 0
 
     def __init__(self, init: int) -> None:
         super().__init__()
-
-        self._name = f'$$_qbit_{_QBitNode._get_qvar_counter()}'
+        self._name = f'$$_qubit_{_QubitNode._get_qvar_counter()}'
         self._init = init
 
     def _get_name(self) -> str:
@@ -412,15 +434,15 @@ class _QBitNode(_ASTNode):
 
     @staticmethod
     def _get_label() -> str:
-        return 'QBIT'
+        return 'QUBIT'
 
     @staticmethod
     def _get_qvar_counter() -> int:
-        _QBitNode._qbit_counter += 1
-        return _QBitNode._qbit_counter
+        _QubitNode._qubit_counter += 1
+        return _QubitNode._qubit_counter
 
     def _accept(self, visitor: '_ASTVisitor') -> None:
-        visitor.on_qbit(self)
+        visitor.on_qubit(self)
 
 
 class _CBitNode(_ASTNode):
@@ -428,7 +450,6 @@ class _CBitNode(_ASTNode):
 
     def __init__(self) -> None:
         super().__init__()
-
         self._name = f'$$_cbit_{_CBitNode._get_cvar_counter()}'
         self._target_bit_ids : List[int] = []
 
@@ -600,19 +621,19 @@ class _IfNode(_ASTNode):
         raise NotImplementedError()
 
 
-class _UNode(_ASTNode):
-    def __init__(self, target: _QBitNode) -> None:
+class _U0Node(_ASTNode):
+    def __init__(self, target_qubit: _QubitNode) -> None:
         super().__init__()
-        self._target = target
+        self._target_qubit = target_qubit
 
-    def _get_target(self) -> _QBitNode:
-        return self._target
+    def _get_target_qubit(self) -> _QubitNode:
+        return self._target_qubit
 
     def _get_target_qubit_ids(self) -> List[int]:
-        return self._get_target()._get_target_qubit_ids()
+        return self._get_target_qubit()._get_target_qubit_ids()
 
 
-class _XNode(_UNode):
+class _XNode(_U0Node):
     @staticmethod
     def _get_label() -> str:
         return 'X'
@@ -621,7 +642,7 @@ class _XNode(_UNode):
         visitor.on_x(self)
 
 
-class _YNode(_UNode):
+class _YNode(_U0Node):
     @staticmethod
     def _get_label() -> str:
         return 'Y'
@@ -630,7 +651,7 @@ class _YNode(_UNode):
         visitor.on_y(self)
 
 
-class _ZNode(_UNode):
+class _ZNode(_U0Node):
     @staticmethod
     def _get_label() -> str:
         return 'Z'
@@ -639,32 +660,7 @@ class _ZNode(_UNode):
         visitor.on_z(self)
 
 
-class _UXNode(_ASTNode):
-    def __init__(self, target: _QBitNode, phi: float) -> None:
-        super().__init__()
-        self._target = target
-        self._phi = phi
-
-    def _get_target(self) -> _QBitNode:
-        return self._target
-
-    def _get_phi(self) -> float:
-        return self._phi
-
-    def _get_target_qubit_ids(self) -> List[int]:
-        return self._get_target()._get_target_qubit_ids()
-
-
-class _RZNode(_UXNode):
-    @staticmethod
-    def _get_label() -> str:
-        return 'RZ'
-
-    def _accept(self, visitor: '_ASTVisitor') -> None:
-        visitor.on_rz(self)
-
-
-class _HNode(_UNode):
+class _HNode(_U0Node):
     @staticmethod
     def _get_label() -> str:
         return 'H'
@@ -673,19 +669,66 @@ class _HNode(_UNode):
         visitor.on_h(self)
 
 
+class _U1Node(_ASTNode):
+    def __init__(self, target_qubit: _QubitNode, arg1: float) -> None:
+        super().__init__()
+        self._target_qubit = target_qubit
+        self._arg1 = arg1
+
+    def _get_target_qubit(self) -> _QubitNode:
+        return self._target_qubit
+
+    def _get_arg1(self) -> float:
+        return self._arg1
+
+    def _get_target_qubit_ids(self) -> List[int]:
+        return self._get_target_qubit()._get_target_qubit_ids()
+
+
+class _U3Node(_ASTNode):
+    @staticmethod
+    def _get_label() -> str:
+        return 'U3'
+
+    def __init__(self, target_qubit: _QubitNode, arg1: float, arg2: float, arg3: float) -> None:
+        super().__init__()
+        self._target_qubit = target_qubit
+        self._arg1 = arg1
+        self._arg2 = arg2
+        self._arg3 = arg3
+
+    def _get_target_qubit(self) -> _QubitNode:
+        return self._target_qubit
+
+    def _get_target_qubit_ids(self) -> List[int]:
+        return self._get_target_qubit()._get_target_qubit_ids()
+
+    def _get_arg1(self) -> float:
+        return self._arg1
+
+    def _get_arg2(self) -> float:
+        return self._arg2
+
+    def _get_arg3(self) -> float:
+        return self._arg3
+
+    def _accept(self, visitor: '_ASTVisitor') -> None:
+        visitor.on_u3(self)
+
+
 class _AllNode(_ASTNode):
-    def __init__(self, controls: Union[_QBitNode, List[_QBitNode]]) -> None:
+    def __init__(self, controls: Union[_QubitNode, List[_QubitNode]]) -> None:
         super().__init__()
         self._controls = to_list(controls)
 
-    def _get_controls(self) -> List[_QBitNode]:
+    def _get_control_qubits(self) -> List[_QubitNode]:
         return self._controls
 
     def _get_control_positive_qubit_ids(self) -> List[int]:
         control_positive_qubit_ids : List[int] = []
 
-        for control in self._controls:
-            control_positive_qubit_ids.extend(control._get_target_qubit_ids())
+        for control_qubit in self._controls:
+            control_positive_qubit_ids.extend(control_qubit._get_target_qubit_ids())
 
         return control_positive_qubit_ids
 
@@ -698,19 +741,18 @@ class _AllNode(_ASTNode):
 
 
 class _MatchNode(_ASTNode):
-    def __init__(self, controls: Union[_QBitNode, List[_QBitNode]], mask: List[int]) -> None:
+    def __init__(self, controls: Union[_QubitNode, List[_QubitNode]], mask: List[int]) -> None:
         super().__init__()
-
         self._controls = to_list(controls)
         self._mask = mask
         self._control_positive_qubit_ids : List[int] = []
         self._control_negative_qubit_ids : List[int] = []
 
-    def _get_controls(self) -> List[_QBitNode]:
+    def _get_control_qubits(self) -> List[_QubitNode]:
         return self._controls
 
     def _get_control_qubit_ids(self) -> List[int]:
-        return sum([control._get_target_qubit_ids() for control in self._controls], [])
+        return sum([control_qubit._get_target_qubit_ids() for control_qubit in self._controls], [])
 
     def _get_mask(self) -> List[int]:
         return self._mask
@@ -736,18 +778,18 @@ class _MatchNode(_ASTNode):
 
 
 class _ZeroNode(_ASTNode):
-    def __init__(self, controls: Union[_QBitNode, List[_QBitNode]]) -> None:
+    def __init__(self, controls: Union[_QubitNode, List[_QubitNode]]) -> None:
         super().__init__()
         self._controls = to_list(controls)
 
-    def _get_controls(self) -> List[_QBitNode]:
+    def _get_control_qubits(self) -> List[_QubitNode]:
         return self._controls
 
     def _get_control_positive_qubit_ids(self) -> List[int]:
         control_positive_qubit_ids : List[int] = []
 
-        for control in self._controls:
-            control_positive_qubit_ids.extend(control._get_target_qubit_ids())
+        for control_qubit in self._controls:
+            control_positive_qubit_ids.extend(control_qubit._get_target_qubit_ids())
 
         return control_positive_qubit_ids
 
@@ -760,18 +802,18 @@ class _ZeroNode(_ASTNode):
 
 
 class _NotNode(_ASTNode):
-    def __init__(self, target: _ASTNode) -> None:
+    def __init__(self, target_qubit: _ASTNode) -> None:
         super().__init__()
-        self._target = target
+        self._target_qubit = target_qubit
 
-    def _get_target(self) -> _ASTNode:
-        return self._target
+    def _get_target_qubit(self) -> _ASTNode:
+        return self._target_qubit
 
     def _set_target_qubit_ids(self, _target_qubit_ids: List[int]):
-        self._target._set_target_qubit_ids(_target_qubit_ids)
+        self._target_qubit._set_target_qubit_ids(_target_qubit_ids)
 
     def _get_target_qubit_ids(self) -> List[int]:
-        return self._target._get_target_qubit_ids()
+        return self._target_qubit._get_target_qubit_ids()
 
     @staticmethod
     def _get_label() -> str:
@@ -782,13 +824,12 @@ class _NotNode(_ASTNode):
 
 
 class _MeasurementNode(_ASTNode):
-    def __init__(self, qubit: _QBitNode, bit: _CBitNode) -> None:
+    def __init__(self, qubit: _QubitNode, bit: _CBitNode) -> None:
         super().__init__()
-
         self._qubit = qubit
         self._bit = bit
 
-    def _get_qubit(self) -> _QBitNode:
+    def _get_qubit(self) -> _QubitNode:
         return self._qubit
 
     def _get_bit(self) -> _CBitNode:
@@ -808,9 +849,10 @@ class _MeasurementNode(_ASTNode):
 class _ASTVisitor:
 
     def on_program(self, program: _Program) -> None:
-        pass
+        for node in program._nodes:
+            node._accept(self)
 
-    def on_qbit(self, var: _QBitNode) -> None:
+    def on_qubit(self, var: _QubitNode) -> None:
         pass
 
     def on_cvar(self, var: _CBitNode) -> None:
@@ -841,10 +883,10 @@ class _ASTVisitor:
     def on_z(self, z: _ZNode) -> None:
         pass
 
-    def on_rz(self, rz: _RZNode) -> None:
+    def on_h(self, h: _HNode) -> None:
         pass
 
-    def on_h(self, h: _HNode) -> None:
+    def on_u3(self, u3: _U3Node) -> None:
         pass
 
     def on_all(self, all_: _AllNode) -> None:
@@ -857,7 +899,7 @@ class _ASTVisitor:
         pass
 
     def on_not(self, not_: _NotNode) -> None:
-        not_._get_target()._accept(self)
+        not_._get_target_qubit()._accept(self)
 
     def on_measure(self, measure: _MeasurementNode) -> None:
         pass
@@ -871,7 +913,7 @@ class _VarQubitsMgrVisitor(_ASTVisitor):
         self.min_unused_bit_id = 0
         self.var_bit_ids_mapping : Dict[str, List[int]] = dict()
 
-    def on_qbit(self, var: _QBitNode) -> None:
+    def on_qubit(self, var: _QubitNode) -> None:
         if var._get_name() in self.var_qubit_ids_mapping:
             return
 
@@ -909,11 +951,11 @@ class _VarQubitsMgrVisitor(_ASTVisitor):
         control_positive_qubit_ids : List[int] = []
         control_negative_qubit_ids : List[int] = []
 
-        for (qubit_id, bit) in zip(match._get_control_qubit_ids(), match._get_mask()):
+        for (target_qubit_id, bit) in zip(match._get_control_qubit_ids(), match._get_mask()):
             if (bit == 0):
-                control_negative_qubit_ids.append(qubit_id)
+                control_negative_qubit_ids.append(target_qubit_id)
             elif (bit == 1):
-                control_positive_qubit_ids.append(qubit_id)
+                control_positive_qubit_ids.append(target_qubit_id)
             else:
                 raise Exception(
                 f'Inside {type(match)._get_label()} statement: Mask `{match._get_mask()}`' +
@@ -1020,12 +1062,12 @@ class _AncillaQubitsMgrVisitor(_ASTVisitor):
 
         # no need for min_unused_qubit_id decrement
 
-    def _on_u(self, u) -> None:
+    def _on_u0(self, u0) -> None:
         parents_control_positive_qubit_ids = list(chain(*self._parents_control_positive_qubit_ids_stack))
         parents_control_negative_qubit_ids = list(chain(*self._parents_control_negative_qubit_ids_stack))
 
-        u._set_parents_control_positive_qubit_ids(parents_control_positive_qubit_ids)
-        u._set_parents_control_negative_qubit_ids(parents_control_negative_qubit_ids)
+        u0._set_parents_control_positive_qubit_ids(parents_control_positive_qubit_ids)
+        u0._set_parents_control_negative_qubit_ids(parents_control_negative_qubit_ids)
 
         ancilla_qubit_ids = list(range(
             self.min_unused_qubit_id,
@@ -1035,26 +1077,23 @@ class _AncillaQubitsMgrVisitor(_ASTVisitor):
                 -1
         ))
 
-        u._set_ancilla_qubit_ids(ancilla_qubit_ids)
+        u0._set_ancilla_qubit_ids(ancilla_qubit_ids)
         self.max_min_unused_qubit_id = max(self.max_min_unused_qubit_id, max(ancilla_qubit_ids + [0]) + 1)
 
-    def _on_ux(self, ux) -> None:
-        self._on_u(ux)
-
     def on_x(self, x: _XNode) -> None:
-        self._on_u(x)
+        self._on_u0(x)
 
     def on_y(self, y: _YNode) -> None:
-        self._on_u(y)
+        self._on_u0(y)
 
     def on_z(self, z: _ZNode) -> None:
-        self._on_u(z)
-
-    def on_rz(self, rz: _RZNode) -> None:
-        self._on_ux(rz)
+        self._on_u0(z)
 
     def on_h(self, h: _HNode) -> None:
-        self._on_u(h)
+        self._on_u0(h)
+
+    def on_u3(self, u3: _U3Node) -> None:
+        self._on_u0(u3)
 
     def on_match(self, match: _MatchNode) -> None:
         parents_control_positive_qubit_ids = list(chain(*self._parents_control_positive_qubit_ids_stack))
@@ -1115,7 +1154,7 @@ class _AncillaQubitsMgrVisitor(_ASTVisitor):
         self.max_min_unused_qubit_id = max(self.max_min_unused_qubit_id, max(ancilla_qubit_ids + [0]) + 1)
 
     def on_not(self, not_: _NotNode) -> None:
-        not_._get_target()._accept(self)
+        not_._get_target_qubit()._accept(self)
 
         parents_control_positive_qubit_ids = list(chain(*self._parents_control_positive_qubit_ids_stack))
         parents_control_negative_qubit_ids = list(chain(*self._parents_control_negative_qubit_ids_stack))
@@ -1156,7 +1195,6 @@ class _ICommand:
 class _CommentCmd(_ICommand):
     def __init__(self, text: str, depth: int) -> None:
         super().__init__(depth)
-
         self.text = text
 
     def get_lines(self, qasm_formatter: IQAsmFormatter) -> List[str]:
@@ -1166,13 +1204,39 @@ class _CommentCmd(_ICommand):
         return _CommentCmd('~' + self.text, self._depth)
 
 
-class _UCmd(_ICommand):
-    def __init__(self, qubit_id: int, depth: int) -> None:
+class _U0Cmd(_ICommand):
+    def __init__(self, target_qubit_id: int, depth: int) -> None:
         super().__init__(depth)
-        self._qubit_id = qubit_id
+        self._qubit_id = target_qubit_id
 
 
-class _XCmd(_UCmd):
+class _CU0Cmd(_ICommand):
+    def __init__(
+        self,
+        control_qubit_id: int,
+        target_qubit_id: int,
+        depth: int
+    ) -> None:
+        super().__init__(depth)
+        self._control_qubit_id = control_qubit_id
+        self._target_qubit_id = target_qubit_id
+
+
+class _CCU0Cmd(_ICommand):
+    def __init__(
+        self,
+        control_qubit_id_1: int,
+        control_qubit_id_2: int,
+        target_qubit_id: int,
+        depth: int
+    ) -> None:
+        super().__init__(depth)
+        self._control_qubit_id_1 = control_qubit_id_1
+        self._control_qubit_id_2 = control_qubit_id_2
+        self._target_qubit_id = target_qubit_id
+
+
+class _XCmd(_U0Cmd):
     def get_lines(self, qasm_formatter: IQAsmFormatter) -> List[str]:
         return [self._get_indent() + qasm_formatter.x(self._qubit_id)]
 
@@ -1180,7 +1244,26 @@ class _XCmd(_UCmd):
         return self
 
 
-class _YCmd(_UCmd):
+class _CXCmd(_CU0Cmd):
+    def get_lines(self, qasm_formatter: IQAsmFormatter) -> List[str]:
+        return [self._get_indent() + qasm_formatter.cx(self._control_qubit_id, self._target_qubit_id)]
+
+    def get_inverse(self) -> '_CXCmd':
+        return self
+
+
+class _CCXCmd(_CCU0Cmd):
+    def get_lines(self, qasm_formatter: IQAsmFormatter) -> List[str]:
+        return [
+            self._get_indent() +
+            qasm_formatter.ccx(self._control_qubit_id_1, self._control_qubit_id_2, self._target_qubit_id)
+        ]
+
+    def get_inverse(self) -> '_CCXCmd':
+        return self
+
+
+class _YCmd(_U0Cmd):
     def get_lines(self, qasm_formatter: IQAsmFormatter) -> List[str]:
         return [self._get_indent() + qasm_formatter.y(self._qubit_id)]
 
@@ -1188,7 +1271,15 @@ class _YCmd(_UCmd):
         return self
 
 
-class _ZCmd(_UCmd):
+class _CYCmd(_CU0Cmd):
+    def get_lines(self, qasm_formatter: IQAsmFormatter) -> List[str]:
+        return [self._get_indent() + qasm_formatter.cy(self._control_qubit_id, self._target_qubit_id)]
+
+    def get_inverse(self) -> '_CYCmd':
+        return self
+
+
+class _ZCmd(_U0Cmd):
     def get_lines(self, qasm_formatter: IQAsmFormatter) -> List[str]:
         return [self._get_indent() + qasm_formatter.z(self._qubit_id)]
 
@@ -1196,24 +1287,18 @@ class _ZCmd(_UCmd):
         return self
 
 
-class _UXCmd(_UCmd):
-    def __init__(self, qubit_id: int, phi: float, depth: int) -> None:
-        super().__init__(qubit_id, depth)
-        self._phi = phi
-
-
-class _RZCmd(_UXCmd):
-    def __init__(self, qubit_id: int, phi: float, depth: int) -> None:
-        super().__init__(qubit_id, phi, depth)
-
+class _CZCmd(_CU0Cmd):
     def get_lines(self, qasm_formatter: IQAsmFormatter) -> List[str]:
-        return [self._get_indent() + qasm_formatter.rz(self._qubit_id, self._phi)]
+        return [
+            self._get_indent() +
+            qasm_formatter.cz(self._control_qubit_id, self._target_qubit_id)
+        ]
 
-    def get_inverse(self) -> '_RZCmd':
-        return _RZCmd(self._qubit_id, -self._phi, self._depth)
+    def get_inverse(self) -> '_CZCmd':
+        return self
 
 
-class _HCmd(_UCmd):
+class _HCmd(_U0Cmd):
     def get_lines(self, qasm_formatter: IQAsmFormatter) -> List[str]:
         return [self._get_indent() + qasm_formatter.h(self._qubit_id)]
 
@@ -1221,139 +1306,102 @@ class _HCmd(_UCmd):
         return self
 
 
-class _CUCmd(_ICommand):
-    def __init__(
-        self,
-        control_qubit: int,
-        target_qubit: int,
-        depth: int
-    ) -> None:
-        super().__init__(depth)
-
-        self._control_qubit = control_qubit
-        self._target_qubit = target_qubit
-
-
-class _CXCmd(_CUCmd):
+class _CHCmd(_CU0Cmd):
     def get_lines(self, qasm_formatter: IQAsmFormatter) -> List[str]:
-        return [
-            self._get_indent() +
-            qasm_formatter.cx(self._control_qubit, self._target_qubit)
-        ]
-
-    def get_inverse(self) -> '_CXCmd':
-        return self
-
-
-class _CYCmd(_CUCmd):
-    def get_lines(self, qasm_formatter: IQAsmFormatter) -> List[str]:
-        return [
-            self._get_indent() +
-            qasm_formatter.cy(self._control_qubit, self._target_qubit)
-        ]
-
-    def get_inverse(self) -> '_CYCmd':
-        return self
-
-
-class _CZCmd(_CUCmd):
-    def get_lines(self, qasm_formatter: IQAsmFormatter) -> List[str]:
-        return [
-            self._get_indent() +
-            qasm_formatter.cz(self._control_qubit, self._target_qubit)
-        ]
-
-    def get_inverse(self) -> '_CZCmd':
-        return self
-
-
-class _CUXCmd(_ICommand):
-    def __init__(
-        self,
-        control_qubit: int,
-        target_qubit: int,
-        phi: float,
-        depth: int
-    ) -> None:
-        super().__init__(depth)
-
-        self._control_qubit = control_qubit
-        self._target_qubit = target_qubit
-        self._phi = phi
-
-
-class _CRZCmd(_CUXCmd):
-    def __init__(
-        self,
-        control_qubit: int,
-        target_qubit: int,
-        phi: float,
-        depth: int
-    ) -> None:
-        super().__init__(control_qubit, target_qubit, phi, depth)
-
-    def get_lines(self, qasm_formatter: IQAsmFormatter) -> List[str]:
-        return [
-            self._get_indent() +
-            qasm_formatter.crz(self._control_qubit, self._target_qubit, self._phi)
-        ]
-
-    def get_inverse(self) -> '_CRZCmd':
-        return _CRZCmd(self._control_qubit, self._target_qubit, -self._phi, self._depth)
-
-
-class _CHCmd(_CUCmd):
-    def get_lines(self, qasm_formatter: IQAsmFormatter) -> List[str]:
-        return [
-            self._get_indent() +
-            qasm_formatter.ch(self._control_qubit, self._target_qubit)
-        ]
+        return [self._get_indent() + qasm_formatter.ch(self._control_qubit_id, self._target_qubit_id)]
 
     def get_inverse(self) -> '_CHCmd':
         return self
 
-class _CCUCmd(_ICommand):
+
+class _U1Cmd(_ICommand):
+    def __init__(self, target_qubit_id: int, arg1: float, depth: int) -> None:
+        super().__init__(depth)
+        self._target_qubit_id = target_qubit_id
+        self._arg1 = arg1
+
+
+class _CU1Cmd(_ICommand):
     def __init__(
         self,
-        control_qubit_1: int,
-        control_qubit_2: int,
-        target_qubit: int,
+        control_qubit_id: int,
+        target_qubit_id: int,
+        arg1: float,
         depth: int
     ) -> None:
         super().__init__(depth)
+        self._control_qubit_id = control_qubit_id
+        self._target_qubit_id = target_qubit_id
+        self._arg1 = arg1
 
-        self._control_qubit_1 = control_qubit_1
-        self._control_qubit_2 = control_qubit_2
-        self._target_qubit = target_qubit
 
+class _U3Cmd(_ICommand):
+    def __init__(self, target_qubit_id: int, arg1: float, arg2: float, arg3: float, depth: int) -> None:
+        super().__init__(depth)
+        self._target_qubit_id = target_qubit_id
+        self._arg1 = arg1
+        self._arg2 = arg2
+        self._arg3 = arg3
 
-class _CCXCmd(_CCUCmd):
     def get_lines(self, qasm_formatter: IQAsmFormatter) -> List[str]:
         return [
             self._get_indent() +
-            qasm_formatter.ccx(self._control_qubit_1, self._control_qubit_2, self._target_qubit)
+            qasm_formatter.u3(self._target_qubit_id, self._arg1, self._arg2, self._arg3)
         ]
 
-    def get_inverse(self) -> '_CCXCmd':
-        return self
+    def get_inverse(self) -> '_U3Cmd':
+        # https://github.com/Qiskit/qiskit-terra/blob/master/qiskit/extensions/standard/u3.py
+        return _U3Cmd(
+            self._target_qubit_id,
+            -self._arg1,    # theta   ->  -theta
+            -self._arg3,    # phi     ->  -lambda
+            -self._arg2,    # lambda  ->  -phi
+            self._depth
+        )
+
+
+class _CU3Cmd(_ICommand):
+    def __init__(self, control_qubit_id: int, target_qubit_id: int, arg1: float, arg2: float, arg3: float, depth: int) -> None:
+        super().__init__(depth)
+        self._control_qubit_id = control_qubit_id
+        self._target_qubit_id = target_qubit_id
+        self._arg1 = arg1
+        self._arg2 = arg2
+        self._arg3 = arg3
+
+    def get_lines(self, qasm_formatter: IQAsmFormatter) -> List[str]:
+        return [
+            self._get_indent() +
+            qasm_formatter.cu3(self._control_qubit_id, self._target_qubit_id, self._arg1, self._arg2, self._arg3)
+        ]
+
+    def get_inverse(self) -> '_CU3Cmd':
+        # https://github.com/Qiskit/qiskit-terra/blob/master/qiskit/extensions/standard/u3.py
+        return _CU3Cmd(
+            self._control_qubit_id,
+            self._target_qubit_id,
+            -self._arg1,    # theta   ->  -theta
+            -self._arg3,    # phi     ->  -lambda
+            -self._arg2,    # lambda  ->  -phi
+            self._depth
+        )
 
 
 class _MeasurementCmd(_ICommand):
     def __init__(
         self,
-        qubit: int,
-        bit: int,
+        qubit_id: int,
+        bit_id: int,
         depth: int
     ) -> None:
         super().__init__(depth)
-
-        self._qubit = qubit
-        self._bit = bit
+        self._qubit_id = qubit_id
+        self._bit_id = bit_id
 
     def get_lines(self, qasm_formatter: IQAsmFormatter) -> List[str]:
         return [
             self._get_indent() +
-            qasm_formatter.measure(self._qubit, self._bit)
+            qasm_formatter.measure(self._qubit_id, self._bit_id)
         ]
 
     def get_inverse(self) -> '_MeasurementCmd':
@@ -1363,7 +1411,6 @@ class _MeasurementCmd(_ICommand):
 class _InversedCmd(_ICommand):
     def __init__(self, command: _ICommand, depth: int) -> None:
         super().__init__(depth)
-
         self.command = command
 
     def set_depth(self, depth: int) -> None:
@@ -1394,9 +1441,9 @@ class _CommentMgr:
 
         return text
 
-    def get_on_qbit_comment(self, var: _QBitNode) -> str:
+    def get_on_qubit_comment(self, var: _QubitNode) -> str:
         return (
-            f'QBIT `{var._get_name()}`' +
+            f'QUBIT `{var._get_name()}`' +
             f' [size: {var._get_size()}]' +
             f' [qubits: {var._get_target_qubit_ids()}]' +
             (('') if (var._get_init() == 0) else (' [init=1]'))
@@ -1439,77 +1486,100 @@ class _CommentMgr:
         return 'ELSE (qubits: [' + qubits_str + '])'
 
     def get_on_flip_comment(self, if_flip: _IfFlipNode) -> str:
-        return 'FLIP'
+        return if_flip._get_label()
 
-    def _get_on_u_comment(self, u_node: _UNode, u_label: str) -> str:
+    def _get_on_u0_comment(self, u0_node: _U0Node) -> str:
         comment = (
-            (u_label + ' ') +
-            f'(qubit: {u_node._get_target_qubit_ids()[0]}) ' +
-            f'-> (qubit: {u_node._get_target_qubit_ids()[0]})'
+            (u0_node._get_label() + ' ') +
+            f'(qubit: {u0_node._get_target_qubit_ids()[0]}) ' +
+            f'-> (qubit: {u0_node._get_target_qubit_ids()[0]})'
         )
 
-        if (u_node._get_parents_control_positive_qubit_ids() or
-            u_node._get_parents_control_negative_qubit_ids()
+        if (u0_node._get_parents_control_positive_qubit_ids() or
+            u0_node._get_parents_control_negative_qubit_ids()
         ):
             qubits_str = self.get_qubits_str(
-                u_node._get_parents_control_positive_qubit_ids(),
-                u_node._get_parents_control_negative_qubit_ids()
+                u0_node._get_parents_control_positive_qubit_ids(),
+                u0_node._get_parents_control_negative_qubit_ids()
             )
 
             comment += ' CONTROLLED (qubits: [' + qubits_str + '])'
 
-        if u_node._get_ancilla_qubit_ids():
-            comment += f' ANC (qubits: [{", ".join(map(str, u_node._get_ancilla_qubit_ids()))}])'
+        if u0_node._get_ancilla_qubit_ids():
+            comment += f' ANC (qubits: [{", ".join(map(str, u0_node._get_ancilla_qubit_ids()))}])'
 
         return comment
 
-    def _get_on_ux_comment(self, ux_node: _UXNode, ux_arg: float, ux_label: str) -> str:
+    def _get_on_u1_comment(self, u1_node: _U1Node, arg1: float) -> str:
         comment = (
-            f'{ux_label} ' +
-            f'{ux_arg} ' +
-            f'(qubit: {ux_node._get_target_qubit_ids()[0]}) ' +
-            f'-> (qubit: {ux_node._get_target_qubit_ids()[0]})'
+            f'{u1_node._get_label()} ' +
+            f'{arg1} ' +
+            f'(qubit: {u1_node._get_target_qubit_ids()[0]}) ' +
+            f'-> (qubit: {u1_node._get_target_qubit_ids()[0]})'
         )
 
-        if (ux_node._get_parents_control_positive_qubit_ids() or
-            ux_node._get_parents_control_negative_qubit_ids()
+        if (u1_node._get_parents_control_positive_qubit_ids() or
+            u1_node._get_parents_control_negative_qubit_ids()
         ):
             qubits_str = self.get_qubits_str(
-                ux_node._get_parents_control_positive_qubit_ids(),
-                ux_node._get_parents_control_negative_qubit_ids()
+                u1_node._get_parents_control_positive_qubit_ids(),
+                u1_node._get_parents_control_negative_qubit_ids()
             )
 
             comment += ' CONTROLLED (qubits: [' + qubits_str + '])'
 
-        if ux_node._get_ancilla_qubit_ids():
-            comment += f' ANC (qubits: [{", ".join(map(str, ux_node._get_ancilla_qubit_ids()))}])'
+        if u1_node._get_ancilla_qubit_ids():
+            comment += f' ANC (qubits: [{", ".join(map(str, u1_node._get_ancilla_qubit_ids()))}])'
+
+        return comment
+
+    def _get_on_u3_comment(self, u3_node: _U3Node, arg1: float, arg2: float, arg3: float) -> str:
+        comment = (
+            f'{u3_node._get_label()} ' +
+            f'{arg1} {arg2} {arg3} ' +
+            f'(qubit: {u3_node._get_target_qubit_ids()[0]}) ' +
+            f'-> (qubit: {u3_node._get_target_qubit_ids()[0]})'
+        )
+
+        if (u3_node._get_parents_control_positive_qubit_ids() or
+            u3_node._get_parents_control_negative_qubit_ids()
+        ):
+            qubits_str = self.get_qubits_str(
+                u3_node._get_parents_control_positive_qubit_ids(),
+                u3_node._get_parents_control_negative_qubit_ids()
+            )
+
+            comment += ' CONTROLLED (qubits: [' + qubits_str + '])'
+
+        if u3_node._get_ancilla_qubit_ids():
+            comment += f' ANC (qubits: [{", ".join(map(str, u3_node._get_ancilla_qubit_ids()))}])'
 
         return comment
 
     def get_on_x_comment(self, x: _XNode) -> str:
-        return self._get_on_u_comment(x, 'X')
+        return self._get_on_u0_comment(x)
 
     def get_on_y_comment(self, y: _YNode) -> str:
-        return self._get_on_u_comment(y, 'Y')
+        return self._get_on_u0_comment(y)
 
     def get_on_z_comment(self, z: _ZNode) -> str:
-        return self._get_on_u_comment(z, 'Z')
-
-    def get_on_rz_comment(self, rz: _RZNode) -> str:
-        return self._get_on_ux_comment(rz, rz._get_phi(), 'RZ')
+        return self._get_on_u0_comment(z)
 
     def get_on_h_comment(self, h: _HNode) -> str:
-        return self._get_on_u_comment(h, 'H')
+        return self._get_on_u0_comment(h)
+
+    def get_on_u3_comment(self, u3: _U3Node) -> str:
+        return self._get_on_u3_comment(u3, u3._get_arg1(), u3._get_arg2(), u3._get_arg3())
 
     def get_on_all_comment(self, all_: _AllNode) -> str:
         qubits = []
 
-        for var in all_._get_controls():
+        for var in all_._get_control_qubits():
             qubits.extend(var._get_target_qubit_ids())
 
         target_qubit_ids = all_._get_target_qubit_ids()
 
-        comment = f'ALL (qubits: {qubits}) -> (qubit: {target_qubit_ids[0]})'
+        comment = f'{all_._get_label()} (qubits: {qubits}) -> (qubit: {target_qubit_ids[0]})'
 
         if all_._get_ancilla_qubit_ids():
             comment += f' ANC (qubits: [{", ".join(map(str, all_._get_ancilla_qubit_ids()))}])'
@@ -1517,11 +1587,15 @@ class _CommentMgr:
         return comment
 
     def get_on_match_comment(self, match: _MatchNode) -> str:
-        qubits: List[int] = sum([control._get_target_qubit_ids() for control in match._get_controls()], [])
+        qubits: List[int] = sum(
+            [control_qubit._get_target_qubit_ids() for control_qubit in match._get_control_qubits()],
+            []
+        )
+
         mask = match._get_mask()
         target_qubit_ids = match._get_target_qubit_ids()
 
-        comment = f'MATCH (qubits: {qubits}) (mask: {mask}) -> (qubit: {target_qubit_ids[0]})'
+        comment = f'{match._get_label()} (qubits: {qubits}) (mask: {mask}) -> (qubit: {target_qubit_ids[0]})'
 
         if match._get_ancilla_qubit_ids():
             comment += f' ANC (qubits: [{", ".join(map(str, match._get_ancilla_qubit_ids()))}])'
@@ -1531,20 +1605,20 @@ class _CommentMgr:
     def get_on_zero_comment(self, zero: _ZeroNode) -> str:
         qubits = []
 
-        for var in zero._get_controls():
+        for var in zero._get_control_qubits():
             qubits.extend(var._get_target_qubit_ids())
 
-        return f'ZERO (qubits: {qubits}) -> (qubit: {zero._get_target_qubit_ids()[0]})'
+        return f'{zero._get_label()} (qubits: {qubits}) -> (qubit: {zero._get_target_qubit_ids()[0]})'
 
     def get_on_not_comment(self, not_: _NotNode) -> str:
         return (
-            f'NOT (qubit: {not_._get_target()._get_target_qubit_ids()[0]}) ' +
-            f'-> (qubit: {not_._get_target()._get_target_qubit_ids()[0]})'
+            f'{not_._get_label()} (qubit: {not_._get_target_qubit()._get_target_qubit_ids()[0]}) ' +
+            f'-> (qubit: {not_._get_target_qubit()._get_target_qubit_ids()[0]})'
         )
 
     def get_on_measure_comment(self, measure: _MeasurementNode) -> str:
         return (
-            f'MEASURE (qubit: {measure._get_qubit()._get_target_qubit_ids()[0]}) ' +
+            f'{measure._get_label()} (qubit: {measure._get_qubit()._get_target_qubit_ids()[0]}) ' +
             f'-> (bit: {measure._get_bit()._get_target_bit_ids()[0]})'
         )
 
@@ -1574,8 +1648,8 @@ class _CompileVisitor(_ASTVisitor):
     def _commands_stack_top(self) -> List[_ICommand]:
         return self.__commands_stack[-1]
 
-    def on_qbit(self, var: _QBitNode) -> None:
-        self._commands_stack_top_extend(_CommentCmd(self.cm.get_on_qbit_comment(var), self.counter.counter))
+    def on_qubit(self, var: _QubitNode) -> None:
+        self._commands_stack_top_extend(_CommentCmd(self.cm.get_on_qubit_comment(var), self.counter.counter))
 
         if var._get_init() == 0:
             pass
@@ -1584,7 +1658,7 @@ class _CompileVisitor(_ASTVisitor):
         else:
             assert(False)
 
-        return super().on_qbit(var)
+        return super().on_qubit(var)
 
     def on_cvar(self, var: _CBitNode) -> None:
         self._commands_stack_top_extend(_CommentCmd(self.cm.get_on_cvar_comment(var), self.counter.counter))
@@ -1703,30 +1777,30 @@ class _CompileVisitor(_ASTVisitor):
     def on_if_flip(self, if_flip: _IfFlipNode) -> None:
         self._commands_stack_top_extend(self._get_on_if_flip_commands(if_flip))
 
-    def _get_on_u_commands(
+    def _get_on_u0_commands(
         self,
-        u_node: _UNode,
-        u_cmd_class: Type[_UCmd],
-        cu_cmd_class: Type[_CUCmd],
-        get_on_u_comment_callback: Callable[[_UNode], str]
+        u0_node: _U0Node,
+        u0_cmd_class: Type[_U0Cmd],
+        cu0_cmd_class: Type[_CU0Cmd],
+        get_on_u0_comment_callback: Callable[[_U0Node], str]
     ) -> List[_ICommand]:
-        comment_commands : List[_ICommand] = [_CommentCmd(get_on_u_comment_callback(u_node), self.counter.counter)]
+        comment_commands : List[_ICommand] = [_CommentCmd(get_on_u0_comment_callback(u0_node), self.counter.counter)]
 
-        parents_control_positive_qubit_ids = u_node._get_parents_control_positive_qubit_ids()
-        parents_control_negative_qubit_ids = u_node._get_parents_control_negative_qubit_ids()
+        parents_control_positive_qubit_ids = u0_node._get_parents_control_positive_qubit_ids()
+        parents_control_negative_qubit_ids = u0_node._get_parents_control_negative_qubit_ids()
 
         if (len(parents_control_positive_qubit_ids) == 0) and (len(parents_control_negative_qubit_ids) == 0):
-            return comment_commands + [u_cmd_class(u_node._get_target_qubit_ids()[0], self.counter.counter)]
+            return comment_commands + [u0_cmd_class(u0_node._get_target_qubit_ids()[0], self.counter.counter)]
         else:
             negate_negative_commands : List[_ICommand] = [
                 _XCmd(control_negative_qubit, self.counter.counter)
                     for control_negative_qubit in parents_control_negative_qubit_ids
             ]
 
-            controlled_commands : List[_ICommand] = self._get_on_cccu_commands(
+            controlled_commands : List[_ICommand] = self._get_on_cccu0_commands(
                 sorted(parents_control_positive_qubit_ids + parents_control_negative_qubit_ids),
-                u_node._get_target_qubit_ids()[0],
-                cu_cmd_class
+                u0_node._get_target_qubit_ids()[0],
+                cu0_cmd_class
             )
 
             return (
@@ -1736,86 +1810,151 @@ class _CompileVisitor(_ASTVisitor):
                 self._inversed(negate_negative_commands)
             )
 
-    def _get_on_ux_commands(
+    def _on_u0(
         self,
-        ux_node: _UXNode,
-        ux_cmd_class: Type[_UXCmd],
-        cu_cmd_class: Type[_CUXCmd],
-        get_on_ux_comment_callback: Callable[[_UXNode], str]
-    ) -> List[_ICommand]:
-        comment_commands : List[_ICommand] = [_CommentCmd(get_on_ux_comment_callback(ux_node), self.counter.counter)]
-
-        parents_control_positive_qubit_ids = ux_node._get_parents_control_positive_qubit_ids()
-        parents_control_negative_qubit_ids = ux_node._get_parents_control_negative_qubit_ids()
-
-        if (len(parents_control_positive_qubit_ids) == 0) and (len(parents_control_negative_qubit_ids) == 0):
-            return comment_commands + [ux_cmd_class(ux_node._get_target_qubit_ids()[0], ux_node._get_phi(), self.counter.counter)]
-        else:
-            negate_negative_commands : List[_ICommand] = [
-                _XCmd(control_negative_qubit, self.counter.counter)
-                    for control_negative_qubit in parents_control_negative_qubit_ids
-            ]
-
-            controlled_commands : List[_ICommand] = self._get_on_cccux_commands(
-                sorted(parents_control_positive_qubit_ids + parents_control_negative_qubit_ids),
-                ux_node._get_target_qubit_ids()[0],
-                ux_node._get_phi(),
-                cu_cmd_class
-            )
-
-            return (
-                comment_commands +
-                negate_negative_commands +
-                controlled_commands +
-                self._inversed(negate_negative_commands)
-            )
-
-    def _on_u(
-        self,
-        u_node: _UNode,
-        u_cmd_class: Type[_UCmd],
-        cu_cmd_class: Type[_CUCmd],
-        get_on_u_comment_callback
+        u0_node: _U0Node,
+        u0_cmd_class: Type[_U0Cmd],
+        cu0_cmd_class: Type[_CU0Cmd],
+        get_on_u0_comment_callback
     ) -> None:
         self._commands_stack_top_extend(
-            self._get_on_u_commands(
-                u_node,
-                u_cmd_class,
-                cu_cmd_class,
-                get_on_u_comment_callback
+            self._get_on_u0_commands(
+                u0_node,
+                u0_cmd_class,
+                cu0_cmd_class,
+                get_on_u0_comment_callback
             )
         )
 
-    def _on_ux(
+    def _get_on_u1_commands(
         self,
-        ux_node: _UXNode,
-        ux_cmd_class: Type[_UXCmd],
-        cux_cmd_class: Type[_CUXCmd],
-        get_on_ux_comment_callback
+        u1_node: _U1Node,
+        u1_cmd_class: Type[_U1Cmd],
+        cu1_cmd_class: Type[_CU1Cmd],
+        get_on_u1_comment_callback: Callable[[_U1Node], str]
+    ) -> List[_ICommand]:
+        comment_commands : List[_ICommand] = [_CommentCmd(get_on_u1_comment_callback(u1_node), self.counter.counter)]
+
+        parents_control_positive_qubit_ids = u1_node._get_parents_control_positive_qubit_ids()
+        parents_control_negative_qubit_ids = u1_node._get_parents_control_negative_qubit_ids()
+
+        if (len(parents_control_positive_qubit_ids) == 0) and (len(parents_control_negative_qubit_ids) == 0):
+            return (
+                comment_commands +
+                [u1_cmd_class(u1_node._get_target_qubit_ids()[0], u1_node._get_arg1(), self.counter.counter)]
+            )
+        else:
+            negate_negative_commands : List[_ICommand] = [
+                _XCmd(control_negative_qubit, self.counter.counter)
+                    for control_negative_qubit in parents_control_negative_qubit_ids
+            ]
+
+            controlled_commands : List[_ICommand] = self._get_on_cccu1_commands(
+                sorted(parents_control_positive_qubit_ids + parents_control_negative_qubit_ids),
+                u1_node._get_target_qubit_ids()[0],
+                u1_node._get_arg1(),
+                cu1_cmd_class
+            )
+
+            return (
+                comment_commands +
+                negate_negative_commands +
+                controlled_commands +
+                self._inversed(negate_negative_commands)
+            )
+
+    def _get_on_u3_commands(
+        self,
+        u3_node: _U3Node,
+        u3_cmd_class: Type[_U3Cmd],
+        cu3_cmd_class: Type[_CU3Cmd],
+        get_on_u3_comment_callback: Callable[[_U3Node], str]
+    ) -> List[_ICommand]:
+        comment_commands : List[_ICommand] = [_CommentCmd(get_on_u3_comment_callback(u3_node), self.counter.counter)]
+
+        parents_control_positive_qubit_ids = u3_node._get_parents_control_positive_qubit_ids()
+        parents_control_negative_qubit_ids = u3_node._get_parents_control_negative_qubit_ids()
+
+        if (len(parents_control_positive_qubit_ids) == 0) and (len(parents_control_negative_qubit_ids) == 0):
+            return (
+                comment_commands + [
+                    u3_cmd_class(
+                        u3_node._get_target_qubit_ids()[0],
+                        u3_node._get_arg1(),
+                        u3_node._get_arg2(),
+                        u3_node._get_arg3(),
+                        self.counter.counter
+                    )
+                ]
+            )
+        else:
+            negate_negative_commands : List[_ICommand] = [
+                _XCmd(control_negative_qubit, self.counter.counter)
+                    for control_negative_qubit in parents_control_negative_qubit_ids
+            ]
+
+            controlled_commands : List[_ICommand] = self._get_on_cccu3_commands(
+                sorted(parents_control_positive_qubit_ids + parents_control_negative_qubit_ids),
+                u3_node._get_target_qubit_ids()[0],
+                u3_node._get_arg1(),
+                u3_node._get_arg2(),
+                u3_node._get_arg3(),
+                cu3_cmd_class
+            )
+
+            return (
+                comment_commands +
+                negate_negative_commands +
+                controlled_commands +
+                self._inversed(negate_negative_commands)
+            )
+
+    def _on_u1(
+        self,
+        u1_node: _U1Node,
+        u1_cmd_class: Type[_U1Cmd],
+        cu1_cmd_class: Type[_CU1Cmd],
+        get_on_u1_comment_callback
     ) -> None:
         self._commands_stack_top_extend(
-            self._get_on_ux_commands(
-                ux_node,
-                ux_cmd_class,
-                cux_cmd_class,
-                get_on_ux_comment_callback
+            self._get_on_u1_commands(
+                u1_node,
+                u1_cmd_class,
+                cu1_cmd_class,
+                get_on_u1_comment_callback
+            )
+        )
+
+    def _on_u3(
+        self,
+        u3_node: _U3Node,
+        u3_cmd_class: Type[_U3Cmd],
+        cu3_cmd_class: Type[_CU3Cmd],
+        get_on_u3_comment_callback
+    ) -> None:
+        self._commands_stack_top_extend(
+            self._get_on_u3_commands(
+                u3_node,
+                u3_cmd_class,
+                cu3_cmd_class,
+                get_on_u3_comment_callback
             )
         )
 
     def on_x(self, x: _XNode) -> None:
-        self._on_u(x, _XCmd, _CXCmd, self.cm.get_on_x_comment)
+        self._on_u0(x, _XCmd, _CXCmd, self.cm.get_on_x_comment)
 
     def on_y(self, y: _YNode) -> None:
-        self._on_u(y, _YCmd, _CYCmd, self.cm.get_on_y_comment)
+        self._on_u0(y, _YCmd, _CYCmd, self.cm.get_on_y_comment)
 
     def on_z(self, z: _ZNode) -> None:
-        self._on_u(z, _ZCmd, _CZCmd, self.cm.get_on_z_comment)
-
-    def on_rz(self, rz: _RZNode) -> None:
-        self._on_ux(rz, _RZCmd, _CRZCmd, self.cm.get_on_rz_comment)
+        self._on_u0(z, _ZCmd, _CZCmd, self.cm.get_on_z_comment)
 
     def on_h(self, h: _HNode) -> None:
-        self._on_u(h, _HCmd, _CHCmd, self.cm.get_on_h_comment)
+        self._on_u0(h, _HCmd, _CHCmd, self.cm.get_on_h_comment)
+
+    def on_u3(self, u3: _U3Node) -> None:
+        self._on_u3(u3, _U3Cmd, _CU3Cmd, self.cm.get_on_u3_comment)
 
     def _inversed(self, commands) -> List[_ICommand]:
         if not(isinstance(commands, list)):
@@ -1823,13 +1962,13 @@ class _CompileVisitor(_ASTVisitor):
 
         return [_InversedCmd(command, command._depth) for command in commands[:: -1]]
 
-    def _get_on_cccu_commands(
+    def _get_on_cccu0_commands(
         self,
         control_qubit_ids: List[int],
-        target_qubit: int,
-        cu_cmd_class: Type[_CUCmd]
+        target_qubit_id: int,
+        cu0_cmd_class: Type[_CU0Cmd]
     ) -> List[_ICommand]:
-        first_unused_qubit_id = max(control_qubit_ids + [target_qubit]) + 1
+        first_unused_qubit_id = max(control_qubit_ids + [target_qubit_id]) + 1
 
         ancillas : List[int] = list(range(first_unused_qubit_id, first_unused_qubit_id + len(control_qubit_ids) + 1))
 
@@ -1845,23 +1984,30 @@ class _CompileVisitor(_ASTVisitor):
                 _CCXCmd(control_1, control_2, ancilla, self.counter.counter)
             )
 
-        cu_commands : List[_ICommand] = [cu_cmd_class(control_qubit_ids[-1], target_qubit, self.counter.counter)]
+        cu0_commands : List[_ICommand] = [
+            cu0_cmd_class(
+                control_qubit_ids[-1],
+                target_qubit_id,
+                self.counter.counter
+            )
+        ]
+
         control_qubit_ids.pop(0)
 
         return (
             controlled_commands +
-            cu_commands +
+            cu0_commands +
             self._inversed(controlled_commands)
         )
 
-    def _get_on_cccux_commands(
+    def _get_on_cccu1_commands(
         self,
         control_qubit_ids: List[int],
-        target_qubit: int,
-        phi: float,
-        cux_cmd_class: Type[_CUXCmd]
+        target_qubit_id: int,
+        arg1: float,
+        cu1_cmd_class: Type[_CU1Cmd]
     ) -> List[_ICommand]:
-        first_unused_qubit_id = max(control_qubit_ids + [target_qubit]) + 1
+        first_unused_qubit_id = max(control_qubit_ids + [target_qubit_id]) + 1
 
         ancillas : List[int] = list(range(first_unused_qubit_id, first_unused_qubit_id + len(control_qubit_ids) + 1))
 
@@ -1877,26 +2023,79 @@ class _CompileVisitor(_ASTVisitor):
                 _CCXCmd(control_1, control_2, ancilla, self.counter.counter)
             )
 
-        cux_commands : List[_ICommand] = [cux_cmd_class(control_qubit_ids[-1], target_qubit, phi, self.counter.counter)]
+        cu1_commands : List[_ICommand] = [
+            cu1_cmd_class(
+                control_qubit_ids[-1],
+                target_qubit_id,
+                arg1,
+                self.counter.counter
+            )
+        ]
+
         control_qubit_ids.pop(0)
 
         return (
             controlled_commands +
-            cux_commands +
+            cu1_commands +
             self._inversed(controlled_commands)
         )
 
-    def _get_on_cccx_commands(self, control_qubit_ids: List[int], target_qubit: int) -> List[_ICommand]:
-        return self._get_on_cccu_commands(control_qubit_ids, target_qubit, _CXCmd)
+
+    def _get_on_cccu3_commands(
+        self,
+        control_qubit_ids: List[int],
+        target_qubit_id: int,
+        arg1: float,
+        arg2: float,
+        arg3: float,
+        cu3_cmd_class: Type[_CU3Cmd]
+    ) -> List[_ICommand]:
+        first_unused_qubit_id = max(control_qubit_ids + [target_qubit_id]) + 1
+
+        ancillas : List[int] = list(range(first_unused_qubit_id, first_unused_qubit_id + len(control_qubit_ids) + 1))
+
+        controlled_commands : List[_ICommand] = []
+
+        while len(control_qubit_ids) > 1:
+            control_1 = control_qubit_ids.pop(0)
+            control_2 = control_qubit_ids.pop(0)
+            ancilla = ancillas.pop(0)
+            control_qubit_ids.append(ancilla)
+
+            controlled_commands.append(
+                _CCXCmd(control_1, control_2, ancilla, self.counter.counter)
+            )
+
+        cu3_commands : List[_ICommand] = [
+            cu3_cmd_class(
+                control_qubit_ids[-1],
+                target_qubit_id,
+                arg1,
+                arg2,
+                arg3,
+                self.counter.counter
+            )
+        ]
+
+        control_qubit_ids.pop(0)
+
+        return (
+            controlled_commands +
+            cu3_commands +
+            self._inversed(controlled_commands)
+        )
+
+    def _get_on_cccx_commands(self, control_qubit_ids: List[int], target_qubit_id: int) -> List[_ICommand]:
+        return self._get_on_cccu0_commands(control_qubit_ids, target_qubit_id, _CXCmd)
 
     def _get_on_all_commands(self, all_: _AllNode) -> List[_ICommand]:
         qubit_ids : List[int] = []
         commands : List[_ICommand] = [_CommentCmd(self.cm.get_on_all_comment(all_), self.counter.counter)]
 
-        for var in all_._get_controls():
+        for var in all_._get_control_qubits():
             qubit_ids.extend(var._get_target_qubit_ids())
 
-        control_qubit_ids : List[int] = sum((var._get_target_qubit_ids() for var in all_._get_controls()), [])
+        control_qubit_ids : List[int] = sum((var._get_target_qubit_ids() for var in all_._get_control_qubits()), [])
         target_qubit_ids : List[int] = all_._get_target_qubit_ids()
         commands.extend(self._get_on_cccx_commands(control_qubit_ids, target_qubit_ids[0]))
 
@@ -1931,13 +2130,16 @@ class _CompileVisitor(_ASTVisitor):
             negate_negative_commands : List[_ICommand] = []
             comment_commands : List[_ICommand] = [_CommentCmd(self.cm.get_on_zero_comment(zero), self.counter.counter)]
 
-            for control in zero._get_controls():
-                qubit_ids.extend(control._get_target_qubit_ids())
+            for control_qubit in zero._get_control_qubits():
+                qubit_ids.extend(control_qubit._get_target_qubit_ids())
 
-            control_qubit_ids : List[int] = sum([control._get_target_qubit_ids() for control in zero._get_controls()], [])
+            control_qubit_ids : List[int] = sum(
+                [control_qubit._get_target_qubit_ids() for control_qubit in zero._get_control_qubits()],
+                []
+            )
 
-            for control_qubit in control_qubit_ids:
-                negate_negative_commands.append(_XCmd(control_qubit, self.counter.counter))
+            for control_qubit_id in control_qubit_ids:
+                negate_negative_commands.append(_XCmd(control_qubit_id, self.counter.counter))
 
             on_all_commands : List[_ICommand] = self._get_on_all_commands(cast(_AllNode, zero))
 
@@ -1957,10 +2159,15 @@ class _CompileVisitor(_ASTVisitor):
 
             self._commands_stack_push([])
             with DepthGuard(self.counter):
-                not_._get_target()._accept(self)
+                not_._get_target_qubit()._accept(self)
             target_commands : List[_ICommand] = self._commands_stack_pop()
 
-            not_commands : List[_ICommand] = [_XCmd(not_._get_target()._get_target_qubit_ids()[0], self.counter.counter)]
+            not_commands : List[_ICommand] = [
+                _XCmd(
+                    not_._get_target_qubit()._get_target_qubit_ids()[0],
+                    self.counter.counter
+                )
+            ]
 
             return (
                 comment_commands +
@@ -2026,7 +2233,7 @@ class Quasar:
         keep_comments = False,
         qasm_formatter = QiskitFormatter()
     ) -> List[str]:
-        _QBitNode._qbit_counter = 0
+        _QubitNode._qubit_counter = 0
         _CBitNode._cbit_counter = 0
 
         root = _Program(root)
@@ -2078,98 +2285,95 @@ ASTNode = _ASTNode
 
 All = _AllNode
 
-Any = lambda *controls: \
-    _NotNode(_ZeroNode(*controls))
+def Any(controls: Union[_QubitNode, List[_QubitNode]]) -> _ASTNode:
+    return _NotNode(_ZeroNode(controls))
 
-CX = lambda control, target: \
-    _IfNode(_AllNode(control)).Then(_XNode(target))
+def U1(target_qubit: _QubitNode, arg1: float) -> _ASTNode:
+    return _U3Node(target_qubit, 0, 0, arg1)
 
-CRZ = lambda control, phi, target: \
-    _IfNode(_AllNode(control)).Then(_RZNode(target, phi))
+def CU1(control_qubit: _QubitNode, target_qubit: _QubitNode, arg1: float) -> _ASTNode:
+    return _IfNode(_AllNode(control_qubit)).Then(U1(target_qubit, arg1))
+
+def U2(target_qubit: _QubitNode, arg1: float, arg2: float) -> _ASTNode:
+    return _U3Node(target_qubit, pi/2, arg1, arg2)
+
+def CU2(control_qubit: _QubitNode, target_qubit: _QubitNode, arg1: float, arg2: float) -> _ASTNode:
+    return _IfNode(_AllNode(control_qubit)).Then(U2(target_qubit, arg1, arg2))
+
+def U3(target_qubit: _QubitNode, arg1: float, arg2: float, arg3: float) -> _ASTNode:
+    return _U3Node(target_qubit, arg1, arg2, arg3)
+
+def CU3(control_qubit: _QubitNode, target_qubit: _QubitNode, arg1: float, arg2: float, arg3: float) -> _ASTNode:
+    return _IfNode(_AllNode(control_qubit)).Then(U3(target_qubit, arg1, arg2, arg3))
+
+def CX(control_qubit: _QubitNode, target_qubit: _QubitNode) -> _ASTNode:
+    return _IfNode(_AllNode(control_qubit)).Then(_XNode(target_qubit))
 
 CNot = CX
 
-CCX = lambda control_1, control_2, target: \
-    _IfNode(_AllNode([control_1, control_2])).Then(_XNode(target))
+def CCX(control_qubit_1: _QubitNode, control_qubit_2: _QubitNode, target_qubit: _QubitNode) -> _ASTNode:
+    return _IfNode(_AllNode([control_qubit_1, control_qubit_2])).Then(_XNode(target_qubit))
 
 # Unconditional Flip <=> If(True).Flip() <=> For_Each_State().Flip()
 # With these two statements
 #     If(    ( condition ) ).Then( code )
 #     If( not( condition ) ).Then( code )
 # code is always executed.
-Flip : Callable[[List[_QBitNode]], List[_ASTNode]] = lambda qbits: [ \
-    _IfNode(          ( _AllNode(qbits[0]) )  ).Flip(), \
-    _IfNode(  _NotNode( _AllNode(qbits[0]) )  ).Flip() \
-]
+def Flip(qubits: List[_QubitNode]) -> List[_ASTNode]:
+    return [
+        _IfNode(          ( _AllNode(qubits[0]) )  ).Flip(),
+        _IfNode(  _NotNode( _AllNode(qubits[0]) )  ).Flip()
+    ]
 
 If = _IfNode
 Inv = _InvNode
 Match = _MatchNode
 Measurement = _MeasurementNode
 Not = _NotNode
+
+def Phase(target_qubit: _QubitNode, arg1: float) -> _ASTNode:
+    return U1(target_qubit, arg1)
+
+def Id(target_qubit: _QubitNode) -> _ASTNode:
+    return U1(target_qubit, 0)
+
 Program = _Program
-QBit = _QBitNode
-RZ = _RZNode
+Qubit = _QubitNode
 
-S = lambda qbit: \
-    _RZNode(qbit, 0.5 * 3.1415)
+def RX(target_qubit: _QubitNode, arg1: float) -> _ASTNode:
+    return _U3Node(target_qubit, arg1, -pi/2, pi/2)
 
-Seq = lambda *nodes: \
-    _Program(list(nodes))
+def CRX(control_qubit: _QubitNode, target_qubit: _QubitNode, arg1: float) -> _ASTNode:
+    return _IfNode(_AllNode(control_qubit)).Then(RX(target_qubit, arg1))
 
-T = lambda qbit: \
-    _RZNode(qbit, 0.25 * 3.1415)
+def RY(target_qubit: _QubitNode, arg1: float) -> _ASTNode:
+    return _U3Node(target_qubit, arg1, 0, 0)
+
+def CRY(control_qubit: _QubitNode, target_qubit: _QubitNode, arg1: float) -> _ASTNode:
+    return _IfNode(_AllNode(control_qubit)).Then(RY(target_qubit, arg1))
+
+def RZ(target_qubit: _QubitNode, arg1: float) -> _Program:
+    return _Program([
+        Phase(target_qubit, arg1/2),
+        X(target_qubit),
+        Phase(target_qubit, -arg1/2),
+        X(target_qubit)
+    ])
+
+def CRZ(control_qubit: _QubitNode, target_qubit: _QubitNode, arg1: float) -> _ASTNode:
+    return _IfNode(_AllNode(control_qubit)).Then(RZ(target_qubit, arg1))
+
+def S(target_qubit: _QubitNode) -> _ASTNode:
+    return Phase(target_qubit, pi/2)
+
+def T(target_qubit: _QubitNode) -> _ASTNode:
+    return Phase(target_qubit, pi/4)
+
+def Seq(*nodes) -> _Program:
+    return _Program(list(nodes))
 
 X = _XNode
 Y = _YNode
 Z = _ZNode
 H = _HNode
 Zero = _ZeroNode
-
-#
-##
-#
-
-def example_grover() -> None:
-    def Grover(
-        qbits: List[QBit],
-        predicate: ASTNode
-    ) -> Program:
-        from math import asin, pi, sqrt
-
-        prgm = Program()
-
-        for qbit in qbits:
-            prgm += H(qbit)
-
-        # IBM QisKit http://tiny.cc/wn7uaz
-        number_of_iters_1 : Callable[[int], int] = \
-            lambda size: int(sqrt(2 ** size))
-
-        # arxiv http://tiny.cc/mo7uaz
-        number_of_iters_2 : Callable[[int], int] = \
-            lambda size: int(pi / 4 / asin(sqrt(1 / (2 ** size))))
-
-        for _ in range(number_of_iters_1(len(qbits))):
-            prgm += If(predicate).Flip()
-
-            for qbit in qbits:
-                prgm += H(qbit)
-
-            prgm += If(Zero(qbits)).Flip()
-
-            for qbit in qbits:
-                prgm += H(qbit)
-
-            prgm += Flip(qbits)
-
-        return prgm
-
-    prgm = Program()
-    qbits = prgm.QBits([0, 0, 0])
-    prgm += Grover(qbits, predicate=Match(qbits, mask=[0, 1, 0]))
-    print('\n'.join(Quasar().compile(prgm, keep_comments=True, qasm_formatter=QASMFormatter())))
-
-
-if __name__ == '__main__':
-    example_grover()
