@@ -23,7 +23,7 @@
 from math import asin, pi, sqrt
 from typing import Callable, List
 
-from b2.qcompiler.qcompiler import ASTNode, H, Flip, If, Program, Qubit, Zero
+from quasar import ASTNode, H, Flip, If, Program, Qubit, Zero
 
 #
 ##
@@ -39,14 +39,14 @@ def Grover(
         prgm += H(qubit)
 
     # IBM QisKit http://tiny.cc/wn7uaz
-    number_of_iters_1 : Callable[[int], int] = \
-        lambda size: int(sqrt(2 ** size))
+    #number_of_iters : Callable[[int], int] = \
+    #    lambda size: int(sqrt(2 ** size))
 
-    # arxiv http://tiny.cc/mo7uaz
-    number_of_iters_2 : Callable[[int], int] = \
+    #arxiv http://tiny.cc/mo7uaz
+    number_of_iters : Callable[[int], int] = \
         lambda size: int(pi / 4 / asin(sqrt(1 / (2 ** size))))
 
-    for _ in range(number_of_iters_1(len(qubits))):
+    for _ in range(number_of_iters(len(qubits))):
         prgm += If(predicate).Flip()
 
         for qubit in qubits:

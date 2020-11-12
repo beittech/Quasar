@@ -1,7 +1,7 @@
 ## Copyright (c) 2019- Beit, Beit.Tech, Beit.Inc
 ----
 
-# Quasar 1.0.1
+# Quasar
 
 Quasar is a utility tool to simplify writing quantum assembly code. It helps translate high level `if` statements into a sequence of controlled quantum commands. It can be easily integrated with [IBM Qiskit], [Google Cirq] or [OpenQASM].
 
@@ -18,13 +18,13 @@ prgm = Program()
 Single qubit object can be created as follow
 
 ```
-qbit_0 = prgm.Qubit()
+qubit_0 = prgm.Qubit()
 ```
 
 An initial value for a qubit can also be provided
 
 ```
-qbit_1 = prgm.Qubit( 1 )
+qubit_1 = prgm.Qubit( 1 )
 ```
 
 Many qubits can be created in one statement
@@ -36,13 +36,13 @@ qubits = prgm.Qubits( [ 0, 1, 0, 1, 0, 1, 0, 1 ] )
 Instructions are composed either with `+=` and `+` operators
 
 ```
-prgm += X( qbit_0 ) + Y( qbit_1 ) + Z( qubits[0] )
+prgm += X( qubit_0 ) + Y( qubit_1 ) + Z( qubits[0] )
 ```
 
 Or with a list syntax
 
 ```
-prgm += [ X( qbit_0 ) , H( qbit_1 ) , Z( qubits[0] ) ]
+prgm += [ X( qubit_0 ) , H( qubit_1 ) , Z( qubits[0] ) ]
 ```
 
 Quasar simplifies writing `if` statements. It looks almost like in any high-level programming language
@@ -55,7 +55,7 @@ If( ... ).Then( ... ).Else( ... )
 For example
 
 ```
-If( All( qbit_1 ) ).Then(
+If( All( qubit_1 ) ).Then(
     X( qubit_0 )
 )
 ```
@@ -104,7 +104,6 @@ To generate an assembly code in your own format just define an implementation of
 
 ```python
 # Quasar
-
 from quasar import All, H, If, Program, Quasar, X
 
 prgm = Program()
@@ -117,13 +116,10 @@ prgm += If(All(q_bits[0])).Then(
 )
 
 # Quasar -> OpenQASM
-
 qasm_str = Quasar().to_qasm_str(prgm)
 
 # OpenQASM -> Qiskit
-
 from qiskit import execute, Aer, QuantumCircuit
-
 circuit = QuantumCircuit.from_qasm_str(qasm_str)
 result = execute(circuit, Aer.get_backend('statevector_simulator')).result()
 print(result.get_statevector(circuit, decimals=3))
@@ -132,6 +128,8 @@ print(result.get_statevector(circuit, decimals=3))
 # Syntax examples
 
 ```python
+from quasar import All, If, Not, Program, Quasar, X
+
 def example_nested_if() -> None:
     prgm = Program()
 
@@ -178,10 +176,14 @@ def example_nested_if() -> None:
         )
     )
 
-    print('\n'.join(Quasar().compile(prgm, keep_comments=True)))
+    print(Quasar().to_qasm_str(prgm))
+
+example_nested_if()
 ```
 
 ```python
+from quasar import All, CX, If, Measurement, Program, Quasar
+
 def example_measurement() -> None:
     prgm = Program()
 
@@ -198,10 +200,17 @@ def example_measurement() -> None:
         Measurement(q_vars[0], c_vars[0])
     )
 
-    print('\n'.join(Quasar().compile(prgm, keep_comments=True)))
+    print(Quasar().to_qasm_str(prgm))
+
+example_measurement()
 ```
 
 ```python
+from typing import Callable, List
+from math import asin, pi, sqrt
+
+from quasar import All, ASTNode, CX, Flip, H, If, Match, Measurement, Program, Quasar, Qubit, Zero
+
 def example_grover() -> None:
     def Grover(
         qubits: List[Qubit],
@@ -209,39 +218,46 @@ def example_grover() -> None:
     ) -> Program:
         prgm = Program()
 
-        for qbit in qubits:
-            prgm += H(qbit)
+        for qubit in qubits:
+            prgm += H(qubit)
 
         # IBM QisKit http://tiny.cc/wn7uaz
-        number_of_iters_1 : Callable[[int], int] = \
-            lambda size: int(sqrt(2 ** size))
+        #number_of_iters : Callable[[int], int] = \
+        #    lambda size: int(sqrt(2 ** size))
 
         # arxiv http://tiny.cc/mo7uaz
-        number_of_iters_2 : Callable[[int], int] = \
+        number_of_iters : Callable[[int], int] = \
             lambda size: int(pi / 4 / asin(sqrt(1 / (2 ** size))))
 
-        for _ in range(number_of_iters_1(len(qubits))):
+        for _ in range(number_of_iters(len(qubits))):
             prgm += If(predicate).Flip()
 
-            for qbit in qubits:
-                prgm += H(qbit)
+            for qubit in qubits:
+                prgm += H(qubit)
 
-            prgm += If(Zero(qbits)).Flip()
+            prgm += If(Zero(qubits)).Flip()
 
-            for qbit in qbits:
-                prgm += H(qbit)
+            for qubit in qubits:
+                prgm += H(qubit)
 
-            prgm += Flip(qbits)
+            prgm += Flip(qubits)
 
         return prgm
 
     prgm = Program()
     qubits = prgm.Qubits([0, 0, 0])
     prgm += Grover(qubits, predicate=Match(qubits, mask=[0, 1, 0]))
-    print('\n'.join(Quasar().compile(prgm, keep_comments=True)))
+    print(Quasar().to_qasm_str(prgm))
+
+example_grover()
 ```
 
 ```python
+from typing import List
+from math import pi
+
+from quasar import All, CNot, If, H, Phase, Program, Quasar, Qubit
+
 def example_fourier() -> None:
     def Fourier(
         qubits: List[Qubit]
@@ -268,7 +284,9 @@ def example_fourier() -> None:
     prgm = Program()
     qubits = prgm.Qubits([0, 1])
     prgm += Fourier(qubits)
-    print('\n'.join(Quasar().compile(prgm, keep_comments=True)))
+    print(Quasar().to_qasm_str(prgm))
+
+example_fourier()
 ```
 
 # License

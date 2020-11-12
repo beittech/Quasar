@@ -3,6 +3,19 @@
 
 # Changelog
 
+## 1.0.2
+### Breaking compatibility changes
+- `Swap` function has been moved from utils.py to quasar.py file
+- `keep_comments` argument of `Quasar.compile` function has been removed
+- `qasm_formatter` argument of `Quasar.compile` has no more default argument set to `QiskitFormatter`
+
+### New features
+- New gates `Sdg`, `Tdg` have been implemented
+- Optimizations for a generated circuit. It can be turn on with `optimize` argument of `Quasar.compile` function
+- New file `quasar_qasm.py` with support for OpenQASM code generation
+- New file `quqsar_qiskit.py` with support for IBM Qiskit library
+- New file `quasar_opt.py` with circuit gates optimization
+
 ## 1.0.1
 ### Breaking compatibility changes
 - `QBit` has been renamed to `Qubit`
@@ -14,7 +27,7 @@
 - Fix in `Fourier` example. Use `Phase` gate insted of `RZ` one.
 
 ### New features
-- New [U3]`(phi, theta, lambda)` has been implemented
+- New gate [U3]`(phi, theta, lambda)` has been implemented
 - New gates `Id`, `RX`, `CRX`, `RY`, `CRY`, `RZ`, `CRZ`, `Phase` have been implemented
 - New file `qfourier.py` with Fourier algorithm implementation
 - New file `qgrover.py` with Grover algorithm implementation

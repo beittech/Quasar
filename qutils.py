@@ -22,7 +22,7 @@
 
 from typing import Any, List, Union
 
-from b2.qcompiler.qcompiler import All, CNot, If, Inv, X, Program, Qubit
+from quasar import All, CNot, If, Inv, X, Program, Qubit
 
 #
 ##
@@ -100,23 +100,6 @@ def Dec(
     qs: List[Qubit]
 ) -> Program:
     return Program(Inv(Inc(qs)))
-
-
-def Swap(
-    qs1: Union[Qubit, List[Qubit]],
-    qs2: Union[Qubit, List[Qubit]]
-) -> Program:
-    qs1 = _to_list(qs1)
-    qs2 = _to_list(qs2)
-
-    prgm = Program()
-
-    for (q1, q2) in zip(qs1, qs2):
-        prgm += CNot(q1, q2)
-        prgm += CNot(q2, q1)
-        prgm += CNot(q1, q2)
-
-    return prgm
 
 
 def Equal(

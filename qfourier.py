@@ -23,8 +23,7 @@
 from math import pi
 from typing import List
 
-from b2.qcompiler.qcompiler import All, H, If, Phase, Program, Qubit, RZ
-from b2.qcompiler.qutils import Swap
+from quasar import All, H, If, Phase, Program, Qubit, Swap
 
 #
 ##
